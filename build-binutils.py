@@ -155,24 +155,17 @@ def invoke_configure(build_folder, install_folder, root_folder, target,
     """
     configure = [
         root_folder.joinpath("binutils", "configure").as_posix(),
-        '--enable-plugins',
-        '--enable-threads',
-        '--enable-deterministic-archives',
-        '--enable-new-dtags'
         '--prefix=%s' % install_folder.as_posix(),
-        '--enable-gold',
-        '--disable-compressed-debug-sections',
-        '--with-system-zlib',
-        '--disable-werror',
-        '--enable-ld=default',
+        '--enable-deterministic-archives', '--enable-plugins', '--quiet',
+        '--disable-werror'
     ]
     if host_arch:
         configure += [
-            'CFLAGS=-O3 -march=%s -mtune=%s' % (host_arch, host_arch),
-            'CXXFLAGS=-O3 -march=%s -mtune=%s' % (host_arch, host_arch)
+            'CFLAGS=-O2 -march=%s -mtune=%s' % (host_arch, host_arch),
+            'CXXFLAGS=-O2 -march=%s -mtune=%s' % (host_arch, host_arch)
         ]
     else:
-        configure += ['CFLAGS=-O3', 'CXXFLAGS=-O3']
+        configure += ['CFLAGS=-O2', 'CXXFLAGS=-O2']
 
     configure_arch_flags = {
         "arm-linux-gnueabi": [
@@ -181,14 +174,16 @@ def invoke_configure(build_folder, install_folder, root_folder, target,
             '--with-sysroot=%s' % install_folder.joinpath(target).as_posix()
         ],
         "mips-linux-gnu": [
+            '--disable-compressed-debug-sections', '--enable-new-dtags',
+            '--enable-shared',
             '--enable-targets=mips64-linux-gnuabi64,mips64-linux-gnuabin32',
-            '--enable-shared'
+            '--enable-threads'
         ],
         "mipsel-linux-gnu": [
             '--disable-compressed-debug-sections', '--disable-gdb',
             '--enable-new-dtags', '--enable-shared',
             '--enable-targets=mips64el-linux-gnuabi64,mips64el-linux-gnuabin32',
-            '--enable-shared'
+            '--enable-threads'
         ],
         "powerpc-linux-gnu": [
             '--enable-lto', '--enable-relro', '--enable-shared',
@@ -221,11 +216,11 @@ def invoke_configure(build_folder, install_folder, root_folder, target,
         ]
     }
     configure_arch_flags['aarch64-linux-gnu'] = configure_arch_flags[
-        'arm-linux-gnueabi'] + ['--enable-targets=aarch64_be-linux-gnu']
+        'arm-linux-gnueabi'] + ['--enable-ld=default', '--enable-gold']
     configure_arch_flags['powerpc64-linux-gnu'] = configure_arch_flags[
-        'powerpc-linux-gnu'] + ['--enable-targets=powerpc-linux-gnu']
+        'powerpc-linux-gnu']
     configure_arch_flags['powerpc64le-linux-gnu'] = configure_arch_flags[
-        'powerpc-linux-gnu'] + ['--enable-targets=powerpc-linux-gnu']
+        'powerpc-linux-gnu']
 
     configure += configure_arch_flags.get(target, [])
 
