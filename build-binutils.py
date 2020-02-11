@@ -175,12 +175,18 @@ def invoke_configure(build_folder, install_folder, root_folder, target,
         configure += ['CFLAGS=-O3', 'CXXFLAGS=-O3']
 
     configure_arch_flags = {
-        "arm-linux-gnueabi": [''],
+        "arm-linux-gnueabi": [
+            '--disable-gdb', '--disable-multilib', '--disable-nls',
+            '--with-gnu-as', '--with-gnu-ld',
+            '--with-sysroot=%s' % install_folder.joinpath(target).as_posix()
+        ],
         "mips-linux-gnu": [
             '--enable-targets=mips64-linux-gnuabi64,mips64-linux-gnuabin32',
             '--enable-shared'
         ],
         "mipsel-linux-gnu": [
+            '--disable-compressed-debug-sections', '--disable-gdb',
+            '--enable-new-dtags', '--enable-shared',
             '--enable-targets=mips64el-linux-gnuabi64,mips64el-linux-gnuabin32',
             '--enable-shared'
         ],
