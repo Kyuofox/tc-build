@@ -92,7 +92,7 @@ echo "Release ID: $rel_id"
 set +u  # we're checking potentially unset variables here
 if [[ -n "$TG_CHAT_ID" ]] && [[ -n "$TG_TOKEN" ]]; then
     if [[ -n "$GH_RUN_ID" ]]; then
-        build_desc="[$rel_date build](https://github.com/$GH_BUILD_REPO/runs/$GH_RUN_ID)"
+        build_desc="[$rel_date build](https://github.com/$GH_BUILD_REPO/actions/runs/$GH_RUN_ID)"
     else
         build_desc="*$rel_date build*"
     fi
