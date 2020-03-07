@@ -40,16 +40,7 @@ function tg_send() {
 # Generate build info
 rel_date="$(date "+%Y%m%d")" # ISO 8601 format
 rel_friendly_date="$(date "+%B %-d, %Y")" # "Month day, year" format
-
-# Generate product name
 clang_version="$(install/bin/clang --version | head -n1 | cut -d' ' -f4)"
-product_desc="proton_clang-$clang_version-$rel_date"
-product_name="$product_desc.tar.zst"
-
-# Create tar.zst package
-mv install "$product_desc"
-tar cf - "$product_desc" | zstd -T0 --ultra -20 - -o "$product_name"
-product_size="$(du -h --apparent-size "$product_name" | awk '{print $1}')"
 
 # Generate release info
 builder_commit="$(git rev-parse HEAD)"
@@ -65,7 +56,7 @@ binutils_ver="$(ls | grep "^binutils-" | sed "s/binutils-//g")"
 git clone "https://$GH_USER:$GH_TOKEN@github.com/$GH_REL_REPO" rel_repo
 pushd rel_repo
 rm -fr *
-cp -r "../$product_desc/"* .
+cp -r ../install/* .
 git checkout README.md # keep this as it's not part of the toolchain itself
 git add .
 git commit -am "Update to $rel_date build
@@ -76,7 +67,7 @@ Builder commit: https://github.com/$GH_BUILD_REPO/commit/$builder_commit"
 git push
 popd
 
-# Delete the existing release if necessary
+# Delete the existing release with this date, if necessary
 resp="$(gh_call GET api "releases/tags/$rel_date" -sS)" && \
     old_rel_id="$(jq .id <<< "$resp")" && \
     gh_call DELETE api "releases/$old_rel_id" -sS
@@ -97,11 +88,6 @@ rel_id="$(jq .id <<< "$resp")"
 echo "Release created: $rel_url"
 echo "Release ID: $rel_id"
 
-# Upload build as asset
-resp="$(gh_call POST uploads "releases/$rel_id/assets?name=$product_name" -H "Content-Type: application/zstd" --data-binary "@$product_name")"
-asset_url="$(jq -r .browser_download_url <<< "$resp")"
-echo "Direct download link: $asset_url"
-
 # Send Telegram notification
 set +u  # we're checking potentially unset variables here
 if [[ -n "$TG_CHAT_ID" ]] && [[ -n "$TG_TOKEN" ]]; then
@@ -112,5 +98,5 @@ if [[ -n "$TG_CHAT_ID" ]] && [[ -n "$TG_TOKEN" ]]; then
     fi
     set -u
 
-    tg_send Message parse_mode=Markdown disable_web_page_preview=true text="$build_desc on LLVM commit [$short_llvm_commit]($llvm_commit_url) is now available: [tarball]($asset_url) or [Git repository](https://github.com/$GH_REL_REPO)"
+    tg_send Message parse_mode=Markdown disable_web_page_preview=true text="$build_desc on LLVM commit [$short_llvm_commit]($llvm_commit_url) is now available: [tarball](https://github.com/$GH_REL_REPO/archive/$rel_date.tar.gz) or [Git repository](https://github.com/$GH_REL_REPO)"
 fi
