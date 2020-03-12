@@ -11,5 +11,5 @@ git config --global user.email "$GIT_EMAIL"
 
 git clone --depth 1 "https://github.com/$GH_BUILD_REPO" build
 cd build
-./build-proton-tc.sh
+./build-toolchain.sh
 ./upload-build.sh
