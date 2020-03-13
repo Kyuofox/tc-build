@@ -527,6 +527,9 @@ if args.bolt and not final.can_use_perf():
 common_cmake_defines = {}
 if args.assertions:
     common_cmake_defines['LLVM_ENABLE_ASSERTIONS'] = 'ON'
+if "lld" in args.projects:
+    # Make ld.lld the default linker for clang
+    common_cmake_defines['CLANG_DEFAULT_LINKER'] = 'lld'
 if args.vendor_string:
     common_cmake_defines['CLANG_VENDOR'] = args.vendor_string
     common_cmake_defines['LLD_VENDOR'] = args.vendor_string
