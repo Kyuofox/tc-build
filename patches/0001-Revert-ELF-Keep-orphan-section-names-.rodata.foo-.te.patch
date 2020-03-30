@@ -1,0 +1,310 @@
+From 4548f1be3e40b8eda55c73f78a3540231f52b744 Mon Sep 17 00:00:00 2001
+From: Danny Lin <danny@kdrag0n.dev>
+Date: Mon, 30 Mar 2020 12:20:22 -0700
+Subject: [PATCH 1/1] Revert "[ELF] Keep orphan section names (.rodata.foo
+ .text.foo) unchanged if !hasSectionsCommand"
+
+This reverts commit 9e33c096476ab5e02ab1c8442cc3cb4e32e29f17.
+
+This breaks Android arm64 4.14 kernel builds when using lld, creating
+thousands of numbered compoundliteral sections that cause booting around
+when userspace is supposed to be started.
+
+Signed-off-by: Danny Lin <danny@kdrag0n.dev>
+---
+ lld/ELF/Writer.cpp                            | 26 ++++++--------
+ lld/test/ELF/linkerscript/data-commands-gc.s  |  2 +-
+ .../ELF/linkerscript/icf-output-sections.s    | 14 +++-----
+ lld/test/ELF/linkerscript/linkorder.s         | 10 ++++++
+ lld/test/ELF/linkerscript/linkorder2.s        |  2 +-
+ lld/test/ELF/linkerscript/memory3.s           |  2 +-
+ lld/test/ELF/linkerscript/orphan-report.s     |  2 +-
+ .../symbol-assign-many-passes2.test           |  2 +-
+ lld/test/ELF/mips-npic-call-pic-script.s      | 34 +++++++++----------
+ lld/test/ELF/shuffle-sections-init-fini.s     |  4 +--
+ lld/test/ELF/text-section-prefix.s            | 14 +-------
+ 11 files changed, 49 insertions(+), 63 deletions(-)
+
+diff --git a/lld/ELF/Writer.cpp b/lld/ELF/Writer.cpp
+index 5dcffa560e1..b68740fba2d 100644
+--- a/lld/ELF/Writer.cpp
++++ b/lld/ELF/Writer.cpp
+@@ -108,21 +108,12 @@ StringRef getOutputSectionName(const InputSectionBase *s) {
+     }
+   }
+ 
+-  // A BssSection created for a common symbol is identified as "COMMON" in
+-  // linker scripts. It should go to .bss section.
+-  if (s->name == "COMMON")
+-    return ".bss";
+-
+-  if (script->hasSectionsCommand)
+-    return s->name;
+-
+-  // When no SECTIONS is specified, emulate GNU ld's internal linker scripts
+-  // by grouping sections with certain prefixes.
+-
+-  // GNU ld places text sections with prefix ".text.hot.", ".text.unlikely.",
+-  // ".text.startup." or ".text.exit." before others. We provide an option -z
+-  // keep-text-section-prefix to group such sections into separate output
+-  // sections. This is more flexible. See also sortISDBySectionOrder().
++  // This check is for -z keep-text-section-prefix.  This option separates text
++  // sections with prefix ".text.hot", ".text.unlikely", ".text.startup" or
++  // ".text.exit".
++  // When enabled, this allows identifying the hot code region (.text.hot) in
++  // the final binary which can be selectively mapped to huge pages or mlocked,
++  // for instance.
+   if (config->zKeepTextSectionPrefix)
+     for (StringRef v :
+          {".text.hot.", ".text.unlikely.", ".text.startup.", ".text.exit."})
+@@ -136,6 +127,11 @@ StringRef getOutputSectionName(const InputSectionBase *s) {
+     if (isSectionPrefix(v, s->name))
+       return v.drop_back();
+ 
++  // CommonSection is identified as "COMMON" in linker scripts.
++  // By default, it should go to .bss section.
++  if (s->name == "COMMON")
++    return ".bss";
++
+   return s->name;
+ }
+ 
+diff --git a/lld/test/ELF/linkerscript/data-commands-gc.s b/lld/test/ELF/linkerscript/data-commands-gc.s
+index 0262d7334e3..0add6ba27e9 100644
+--- a/lld/test/ELF/linkerscript/data-commands-gc.s
++++ b/lld/test/ELF/linkerscript/data-commands-gc.s
+@@ -4,7 +4,7 @@
+ # RUN: ld.lld --gc-sections -o %t %t.o --script %t.script
+ # RUN: llvm-objdump -t %t | FileCheck %s
+ 
+-# CHECK: 0000000000000008 g       .rodata.bar    0000000000000000 bar
++# CHECK: 0000000000000008 g       .rodata  0000000000000000 bar
+ 
+ .section .rodata.bar
+ .quad 0x1122334455667788
+diff --git a/lld/test/ELF/linkerscript/icf-output-sections.s b/lld/test/ELF/linkerscript/icf-output-sections.s
+index ae9203abaea..f23d7fff06b 100644
+--- a/lld/test/ELF/linkerscript/icf-output-sections.s
++++ b/lld/test/ELF/linkerscript/icf-output-sections.s
+@@ -28,19 +28,13 @@
+ # SEC2:      .text.foo   PROGBITS 0000000000000000 001000 000001
+ # SEC2-NEXT: .text.bar   PROGBITS 0000000000000001 001001 000001
+ 
+-## .text.bar* are orphan sections.
++## .text.bar* are orphans that get assigned to .text.
+ # RUN: echo 'SECTIONS { .text.foo : {*(.text.foo*)} }' > %t3.script
+-# RUN: ld.lld %t.o -T %t3.script --icf=all --print-icf-sections -o %t3 | FileCheck --check-prefix=ICF3 %s
+-# RUN: llvm-readelf -S %t3 | FileCheck --check-prefix=SEC3 %s
++# RUN: ld.lld %t.o --script %t3.script --icf=all --print-icf-sections -o %t | FileCheck --check-prefix=ICF2 %s
++# RUN: llvm-readelf -S %t | FileCheck --check-prefix=SEC3 %s
+ 
+-# ICF3:      selected section {{.*}}.o:(.text.foo0)
+-# ICF3-NEXT:   removing identical section {{.*}}.o:(.text.foo1)
+-
+-# SEC3:      Name        Type     Address          Off    Size
+ # SEC3:      .text.foo   PROGBITS 0000000000000000 001000 000001
+-# SEC3-NEXT: .text       PROGBITS 0000000000000004 001004 000000
+-# SEC3-NEXT: .text.bar0  PROGBITS 0000000000000004 001004 000001
+-# SEC3-NEXT: .text.bar1  PROGBITS 0000000000000005 001005 000001
++# SEC3-NEXT: .text       PROGBITS 0000000000000004 001004 000001
+ 
+ .section .text.foo0,"ax"
+ ret
+diff --git a/lld/test/ELF/linkerscript/linkorder.s b/lld/test/ELF/linkerscript/linkorder.s
+index 1eb93ecd321..4f179130373 100644
+--- a/lld/test/ELF/linkerscript/linkorder.s
++++ b/lld/test/ELF/linkerscript/linkorder.s
+@@ -1,6 +1,7 @@
+ # REQUIRES: x86
+ # RUN: llvm-mc -filetype=obj -triple=x86_64-pc-linux %s -o %t.o
+ 
++<<<<<<< HEAD
+ ## Contiguous SHF_LINK_ORDER sections.
+ # RUN: echo 'SECTIONS { .rodata : {BYTE(0) *(.rodata*) BYTE(3)} \
+ # RUN:   .text : {*(.text.bar) *(.text.foo)} }' > %t.lds
+@@ -13,6 +14,15 @@
+ # CHECK-NEXT: 00020103
+ # CHECK:      Hex dump of section '.text':
+ # CHECK-NEXT: 0201
++=======
++# RUN: echo "SECTIONS { .text : { *(.text.bar) *(.text.foo)  } }" > %t.script
++# RUN: ld.lld -o %t --script %t.script %t.o
++# RUN: llvm-objdump -s %t | FileCheck %s
++
++# RUN: echo "SECTIONS { .text : { *(.text.foo) *(.text.bar) } }" > %t.script
++# RUN: ld.lld -o %t --script %t.script %t.o
++# RUN: llvm-objdump -s %t | FileCheck --check-prefix=INV %s
++>>>>>>> parent of 9e33c096476... [ELF] Keep orphan section names (.rodata.foo .text.foo) unchanged if !hasSectionsCommand
+ 
+ # RUN: echo 'SECTIONS { .rodata : {BYTE(0) *(.rodata*) BYTE(3)} \
+ # RUN:  .text : {*(.text.foo) *(.text.bar)} }' > %t1.lds
+diff --git a/lld/test/ELF/linkerscript/linkorder2.s b/lld/test/ELF/linkerscript/linkorder2.s
+index 5b2eeea08ab..4a538b6190e 100644
+--- a/lld/test/ELF/linkerscript/linkorder2.s
++++ b/lld/test/ELF/linkerscript/linkorder2.s
+@@ -1,6 +1,6 @@
+ # REQUIRES: x86
+ # RUN: llvm-mc -filetype=obj -triple=x86_64-pc-linux %s -o %t.o
+-# RUN: echo 'SECTIONS { .rodata : {*(.rodata.*)} .text : {*(.text.*)} }' > %t.script
++# RUN: echo "SECTIONS { .text : { *(.text.*) } }" > %t.script
+ 
+ # RUN: echo "_bar" > %t.ord
+ # RUN: echo "_foo" >> %t.ord
+diff --git a/lld/test/ELF/linkerscript/memory3.s b/lld/test/ELF/linkerscript/memory3.s
+index 56fc36d67a3..b9d609e59e3 100644
+--- a/lld/test/ELF/linkerscript/memory3.s
++++ b/lld/test/ELF/linkerscript/memory3.s
+@@ -18,6 +18,6 @@
+ # CHECK:   0       00000000 0000000000000000
+ # CHECK:   1 .text 00000001 0000000000001000
+ 
+-.section .text,"ax",%progbits
++.section .text.foo,"ax",%progbits
+ foo:
+   nop
+diff --git a/lld/test/ELF/linkerscript/orphan-report.s b/lld/test/ELF/linkerscript/orphan-report.s
+index 3dca23267ec..5203a6d20de 100644
+--- a/lld/test/ELF/linkerscript/orphan-report.s
++++ b/lld/test/ELF/linkerscript/orphan-report.s
+@@ -24,7 +24,7 @@
+ # RUN:   %t.o 2>&1 | FileCheck %s --check-prefixes=COMMON,DYNSYM,SYMTAB
+ 
+ # COMMON:      {{.*}}.o:(.text) is being placed in '.text'
+-# COMMON-NEXT: {{.*}}.o:(.text.2) is being placed in '.text.2'
++# COMMON-NEXT: {{.*}}.o:(.text.2) is being placed in '.text'
+ # COMMON-NEXT: <internal>:(.comment) is being placed in '.comment'
+ # DYNSYM-NEXT: <internal>:(.dynsym) is being placed in '.dynsym'
+ # DYNSYM-NEXT: <internal>:(.gnu.hash) is being placed in '.gnu.hash'
+diff --git a/lld/test/ELF/linkerscript/symbol-assign-many-passes2.test b/lld/test/ELF/linkerscript/symbol-assign-many-passes2.test
+index 18dc5019ee1..973a4881850 100644
+--- a/lld/test/ELF/linkerscript/symbol-assign-many-passes2.test
++++ b/lld/test/ELF/linkerscript/symbol-assign-many-passes2.test
+@@ -22,7 +22,7 @@ SECTIONS {
+     b = c + 1;
+     c = d + 1;
+     d = e + 1;
+-    *(.text*);
++    *(.text);
+   }
+   e = .;
+ }
+diff --git a/lld/test/ELF/mips-npic-call-pic-script.s b/lld/test/ELF/mips-npic-call-pic-script.s
+index 041c62101f7..0ce1bfe9477 100644
+--- a/lld/test/ELF/mips-npic-call-pic-script.s
++++ b/lld/test/ELF/mips-npic-call-pic-script.s
+@@ -87,13 +87,13 @@ __start:
+ # ORPH1: Disassembly of section .text:
+ # ORPH1-EMPTY:
+ # ORPH1-NEXT: <__start>:
+-# ORPH1-NEXT:    20000:       jal     131168 <__LA25Thunk_foo1a>
++# ORPH1-NEXT:    20000:       jal     131156 <__LA25Thunk_foo1a>
+ # ORPH1-NEXT:    20004:       nop
+-# ORPH1-NEXT:    20008:       jal     131216 <__LA25Thunk_foo2>
++# ORPH1-NEXT:    20008:       jal     131208 <__LA25Thunk_foo2>
+ # ORPH1-NEXT:    2000c:       nop
+-# ORPH1-NEXT:    20010:       jal     131184 <__LA25Thunk_foo1b>
++# ORPH1-NEXT:    20010:       jal     131172 <__LA25Thunk_foo1b>
+ # ORPH1-NEXT:    20014:       nop
+-# ORPH1-NEXT:    20018:       jal     131216 <__LA25Thunk_foo2>
++# ORPH1-NEXT:    20018:       jal     131208 <__LA25Thunk_foo2>
+ # ORPH1-NEXT:    2001c:       nop
+ # ORPH1-NEXT:    20020:       jal     131120 <__LA25Thunk_fpic>
+ # ORPH1-NEXT:    20024:       nop
+@@ -113,16 +113,16 @@ __start:
+ # ORPH1-NEXT:    20050:       nop
+ 
+ # ORPH1: <__LA25Thunk_foo1a>:
+-# ORPH1-NEXT:    20060:       lui     $25, 2
+-# ORPH1-NEXT:                 j       131200 <foo1a>
+-# ORPH1-NEXT:                 addiu   $25, $25, 128
+-# ORPH1-NEXT:                 nop
++# ORPH1-NEXT:    20054:       lui     $25, 2
++# ORPH1-NEXT:    20058:       j       131200 <foo1a>
++# ORPH1-NEXT:    2005c:       addiu   $25, $25, 128
++# ORPH1-NEXT:    20060:       nop
+ 
+ # ORPH1: <__LA25Thunk_foo1b>:
+-# ORPH1-NEXT:    20070:       lui     $25, 2
+-# ORPH1-NEXT:                 j       131204 <foo1b>
+-# ORPH1-NEXT:                 addiu   $25, $25, 132
+-# ORPH1-NEXT:                 nop
++# ORPH1-NEXT:    20064:       lui     $25, 2
++# ORPH1-NEXT:    20068:       j       131204 <foo1b>
++# ORPH1-NEXT:    2006c:       addiu   $25, $25, 132
++# ORPH1-NEXT:    20070:       nop
+ 
+ # ORPH1: <foo1a>:
+ # ORPH1-NEXT:    20080:       nop
+@@ -131,17 +131,17 @@ __start:
+ # ORPH1-NEXT:    20084:       nop
+ 
+ # ORPH1: <__LA25Thunk_foo2>:
+-# ORPH1-NEXT:    20090:       lui     $25, 2
+-# ORPH1-NEXT:                 j       131232 <foo2>
+-# ORPH1-NEXT:                 addiu   $25, $25, 160
+-# ORPH1-NEXT:                 nop
++# ORPH1-NEXT:    20088:       lui     $25, 2
++# ORPH1-NEXT:    2008c:       j       131232 <foo2>
++# ORPH1-NEXT:    20090:       addiu   $25, $25, 160
++# ORPH1-NEXT:    20094:       nop
+ 
+ # ORPH1: <foo2>:
+ # ORPH1-NEXT:    200a0:       nop
+ 
+ # Test script with orphans added to new OutputSection, the .text.1 and
+ # .text.2 sections will form a new OutputSection .text
+-# RUN: echo "SECTIONS { .out 0x20000 : { *(.text) } .text : {*(.text*)} }" > %t3.script
++# RUN: echo "SECTIONS { .out 0x20000 : { *(.text) }  }" > %t3.script
+ # RUN: ld.lld --script %t3.script %t-npic.o %t-pic.o %t-sto-pic.o -o %t3.exe
+ # RUN: llvm-objdump -d --no-show-raw-insn %t3.exe | FileCheck --check-prefix=ORPH2 %s
+ 
+diff --git a/lld/test/ELF/shuffle-sections-init-fini.s b/lld/test/ELF/shuffle-sections-init-fini.s
+index d98ca8d359d..31d87bb3244 100644
+--- a/lld/test/ELF/shuffle-sections-init-fini.s
++++ b/lld/test/ELF/shuffle-sections-init-fini.s
+@@ -30,9 +30,7 @@
+ 
+ ## With a SECTIONS command, SHT_INIT_ARRAY prirotities are ignored.
+ ## All .init_array* are shuffled together.
+-# RUN: echo 'SECTIONS { \
+-# RUN:   .init_array : { *(.init_array*) } \
+-# RUN:   .fini_array : { *(.fini_array*) }}' > %t.script
++# RUN: echo 'SECTIONS {}' > %t.script
+ # RUN: ld.lld -T %t.script %t.o -o %t2
+ # RUN: llvm-readelf -x .init -x .fini -x .init_array -x .fini_array %t2 | \
+ # RUN:   FileCheck --check-prefixes=CHECK2,ORDERED2 %s
+diff --git a/lld/test/ELF/text-section-prefix.s b/lld/test/ELF/text-section-prefix.s
+index 022b4167037..e20828ab26a 100644
+--- a/lld/test/ELF/text-section-prefix.s
++++ b/lld/test/ELF/text-section-prefix.s
+@@ -1,7 +1,4 @@
+ # REQUIRES: x86
+-## -z keep-text-section-prefix separates text sections with prefix .text.hot,
+-## .text.unlikely, .text.startup, or .text.exit, in the absence of a SECTIONS command.
+-
+ # RUN: llvm-mc -filetype=obj -triple=x86_64 %s -o %t.o
+ # RUN: ld.lld %t.o -o %t1
+ # RUN: llvm-readelf -S %t1 | FileCheck --check-prefix=NOKEEP %s
+@@ -20,18 +17,9 @@
+ # NOKEEP:    [ 1] .text
+ # NOKEEP-NOT:     .text
+ 
+-## With a SECTIONS command, orphan sections are created verbatim.
+-## No grouping is performed for them.
+ # RUN: echo 'SECTIONS {}' > %t.lds
+ # RUN: ld.lld -T %t.lds -z keep-text-section-prefix %t.o -o %t.script
+-# RUN: llvm-readelf -S %t.script | FileCheck --check-prefix=SCRIPT %s
+-
+-# SCRIPT:      .text
+-# SCRIPT-NEXT: .text.f
+-# SCRIPT-NEXT: .text.hot.f_hot
+-# SCRIPT-NEXT: .text.startup.f_startup
+-# SCRIPT-NEXT: .text.exit.f_exit
+-# SCRIPT-NEXT: .text.unlikely.f_unlikely
++# RUN: llvm-readelf -S %t.script | FileCheck --check-prefix=KEEP %s
+ 
+ .globl _start
+ _start:
+-- 
+2.25.2
+
