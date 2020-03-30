@@ -11,7 +11,6 @@ function msg() {
 msg "Building LLVM..."
 ./build-llvm.py \
 	--clang-vendor "Proton" \
-	--projects "clang;compiler-rt;lld;polly" \
 	--targets "ARM;AArch64;X86" \
 	--shallow-clone \
 	--pgo \
