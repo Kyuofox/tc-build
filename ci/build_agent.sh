@@ -11,5 +11,12 @@ git config --global user.email "$GIT_EMAIL"
 
 git clone --depth 1 "https://github.com/$GH_BUILD_REPO" build
 cd build
+
+# Clone LLVM and apply fixup patches *before* building
+git clone --depth 1 "https://github.com/llvm/llvm-project"
+pushd llvm-project
+git am -3 ../patches/*
+popd
+
 ./build-toolchain.sh
 ./upload-build.sh
