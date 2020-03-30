@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -eufo pipefail
+set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
