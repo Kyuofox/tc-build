@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+shopt -s nullglob
 set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
