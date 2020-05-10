@@ -4,44 +4,59 @@
 TC_BLD=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"/.. && pwd)
 [[ -z ${TC_BLD} ]] && exit 1
 
+function header() {
+    BORDER="====$(for _ in $(seq ${#1}); do printf '='; done)===="
+    printf '\033[1m\n%s\n%s\n%s\n\n\033[0m' "${BORDER}" "==  ${1}  ==" "${BORDER}"
+}
+
 # Parse parameters
-while (( ${#} )); do
+while ((${#})); do
     case ${1} in
         "--allyesconfig")
-            CONFIG_TARGET=allyesconfig ;;
-        "-b"|"--build-folder")
+            CONFIG_TARGET=allyesconfig
+            ;;
+        "-b" | "--build-folder")
             shift
-            BUILD_FOLDER=${1} ;;
-        "-p"|"--path-override")
+            BUILD_FOLDER=${1}
+            ;;
+        "-p" | "--path-override")
             shift
-            PATH_OVERRIDE=${1} ;;
-        "-s"|"--src-folder")
+            PATH_OVERRIDE=${1}
+            ;;
+        "--pgo")
             shift
-            SRC_FOLDER=${1} ;;
-        "-t"|"--targets")
+            PGO=${1}
+            ;;
+        "-s" | "--src-folder")
             shift
-            IFS=";" read -ra LLVM_TARGETS <<< "${1}"
+            SRC_FOLDER=${1}
+            ;;
+        "-t" | "--targets")
+            shift
+            IFS=";" read -ra LLVM_TARGETS <<<"${1}"
             # Convert LLVM targets into GNU triples
             for LLVM_TARGET in "${LLVM_TARGETS[@]}"; do
                 case ${LLVM_TARGET} in
-                    "AArch64") TARGETS=( "${TARGETS[@]}" "aarch64-linux-gnu" ) ;;
-                    "ARM") TARGETS=( "${TARGETS[@]}" "arm-linux-gnueabi" ) ;;
-                    "PowerPC") TARGETS=( "${TARGETS[@]}" "powerpc-linux-gnu" "powerpc64-linux-gnu" "powerpc64le-linux-gnu" ) ;;
-                    "X86") TARGETS=( "${TARGETS[@]}" "x86_64-linux-gnu" ) ;;
+                    "AArch64") TARGETS=("${TARGETS[@]}" "aarch64-linux-gnu") ;;
+                    "ARM") TARGETS=("${TARGETS[@]}" "arm-linux-gnueabi") ;;
+                    "PowerPC") TARGETS=("${TARGETS[@]}" "powerpc-linux-gnu" "powerpc64-linux-gnu" "powerpc64le-linux-gnu") ;;
+                        # RISCV is consumed until Linux 5.7 to avoid carrying a patch file
+                    "RISCV") ;;
+                    "SystemZ") TARGETS=("${TARGETS[@]}" "s390x-linux-gnu") ;;
+                    "X86") TARGETS=("${TARGETS[@]}" "x86_64-linux-gnu") ;;
                 esac
             done
+            ;;
     esac
     shift
 done
-[[ -z ${TARGETS[*]} ]] && TARGETS=( "arm-linux-gnueabi" "aarch64-linux-gnu" "powerpc-linux-gnu" "powerpc64-linux-gnu" "powerpc64le-linux-gnu" "x86_64-linux-gnu" )
+[[ -z ${TARGETS[*]} ]] && TARGETS=("arm-linux-gnueabi" "aarch64-linux-gnu" "powerpc-linux-gnu" "powerpc64-linux-gnu" "powerpc64le-linux-gnu" "s390x-linux-gnu" "x86_64-linux-gnu")
 [[ -z ${CONFIG_TARGET} ]] && CONFIG_TARGET=defconfig
 
 # Add the default install bin folder to PATH for binutils
-# Add the stage 2 bin folder to PATH for the instrumented clang
-for BIN_FOLDER in ${TC_BLD}/install/bin ${BUILD_FOLDER:=${TC_BLD}/build/llvm}/stage2/bin; do
-    export PATH=${BIN_FOLDER}:${PATH}
-done
-
+export PATH=${TC_BLD}/install/bin:${PATH}
+# Add the stage 2 bin folder to PATH for the instrumented clang if we are doing PGO
+${PGO:=false} && export PATH=${BUILD_FOLDER:=${TC_BLD}/build/llvm}/stage2/bin:${PATH}
 # If the user wants to add another folder to PATH, they can do it with the PATH_OVERRIDE variable
 [[ -n ${PATH_OVERRIDE} ]] && export PATH=${PATH_OVERRIDE}:${PATH}
 
@@ -49,7 +64,7 @@ done
 if [[ -n ${SRC_FOLDER} ]]; then
     cd "${SRC_FOLDER}" || exit 1
 else
-    LINUX=linux-5.5.9
+    LINUX=linux-5.6
     LINUX_TARBALL=${TC_BLD}/kernel/${LINUX}.tar.xz
     LINUX_PATCH=${TC_BLD}/kernel/${LINUX}-${CONFIG_TARGET}.patch
 
@@ -57,7 +72,10 @@ else
     if [[ ! -f ${LINUX_TARBALL} ]]; then
         curl -LSso "${LINUX_TARBALL}" https://cdn.kernel.org/pub/linux/kernel/v5.x/"${LINUX_TARBALL##*/}"
 
-        ( cd "${LINUX_TARBALL%/*}" || exit 1; sha256sum -c "${LINUX_TARBALL}".sha256 --quiet ) || {
+        (
+            cd "${LINUX_TARBALL%/*}" || exit 1
+            sha256sum -c "${LINUX_TARBALL}".sha256 --quiet
+        ) || {
             echo "Linux tarball verification failed! Please remove '${LINUX_TARBALL}' and try again."
             exit 1
         }
@@ -67,7 +85,7 @@ else
     [[ -f ${LINUX_PATCH} ]] && rm -rf ${LINUX}
     [[ -d ${LINUX} ]] || { tar -xf "${LINUX_TARBALL}" || exit ${?}; }
     cd ${LINUX} || exit 1
-    [[ -f ${LINUX_PATCH} ]] && { patch -p1 < "${LINUX_PATCH}" || exit ${?}; }
+    [[ -f ${LINUX_PATCH} ]] && { patch -p1 <"${LINUX_PATCH}" || exit ${?}; }
 fi
 
 # Check for all binutils and build them if necessary
@@ -79,23 +97,37 @@ for PREFIX in "${TARGETS[@]}"; do
     else
         COMMAND="${PREFIX}"-as
     fi
-    command -v "${COMMAND}" &>/dev/null || BINUTILS_TARGETS=( "${BINUTILS_TARGETS[@]}" "${PREFIX}" )
+    command -v "${COMMAND}" &>/dev/null || BINUTILS_TARGETS=("${BINUTILS_TARGETS[@]}" "${PREFIX}")
 done
 [[ -n "${BINUTILS_TARGETS[*]}" ]] && { "${TC_BLD}"/build-binutils.py -t "${BINUTILS_TARGETS[@]}" || exit ${?}; }
 
+# Print final toolchain information
+header "Toolchain information"
+clang --version
+for PREFIX in "${TARGETS[@]}"; do
+    echo
+    case ${PREFIX} in
+        x86_64-linux-gnu) as --version ;;
+        *) "${PREFIX}"-as --version ;;
+    esac
+done
+
 # SC2191: The = here is literal. To assign by index, use ( [index]=value ) with no spaces. To keep as literal, quote it.
 # shellcheck disable=SC2191
-MAKE=( make -j"$(nproc)" -s CC=clang O=out )
+MAKE=(make -j"$(nproc)" -s CC=clang O=out)
+
+header "Building kernels"
 
 set -x
 
 for TARGET in "${TARGETS[@]}"; do
     case ${TARGET} in
-        "arm-linux-gnueabi") time "${MAKE[@]}" ARCH=arm CROSS_COMPILE="${TARGET}-" KCONFIG_ALLCONFIG=${TC_BLD}/kernel/le.config LD=ld.lld distclean "${CONFIG_TARGET}" zImage modules || exit ${?} ;;
-        "aarch64-linux-gnu") time "${MAKE[@]}" ARCH=arm64 CROSS_COMPILE="${TARGET}-" KCONFIG_ALLCONFIG=${TC_BLD}/kernel/le.config LD=ld.lld distclean "${CONFIG_TARGET}" Image.gz modules || exit ${?} ;;
+        "arm-linux-gnueabi") time "${MAKE[@]}" ARCH=arm CROSS_COMPILE="${TARGET}-" KCONFIG_ALLCONFIG="${TC_BLD}"/kernel/le.config LD=ld.lld distclean "${CONFIG_TARGET}" zImage modules || exit ${?} ;;
+        "aarch64-linux-gnu") time "${MAKE[@]}" ARCH=arm64 CROSS_COMPILE="${TARGET}-" KCONFIG_ALLCONFIG="${TC_BLD}"/kernel/le.config LD=ld.lld distclean "${CONFIG_TARGET}" Image.gz modules || exit ${?} ;;
         "powerpc-linux-gnu") time "${MAKE[@]}" ARCH=powerpc CROSS_COMPILE="${TARGET}-" distclean ppc44x_defconfig zImage modules || exit ${?} ;;
         "powerpc64-linux-gnu") time "${MAKE[@]}" ARCH=powerpc CROSS_COMPILE="${TARGET}-" distclean pseries_defconfig vmlinux modules || exit ${?} ;;
         "powerpc64le-linux-gnu") time "${MAKE[@]}" ARCH=powerpc CROSS_COMPILE="${TARGET}-" distclean powernv_defconfig zImage.epapr modules || exit ${?} ;;
+        "s390x-linux-gnu") time "${MAKE[@]}" ARCH=s390 CROSS_COMPILE="${TARGET}-" distclean defconfig bzImage modules || exit ${?} ;;
         "x86_64-linux-gnu") time "${MAKE[@]}" LD=ld.lld O=out distclean "${CONFIG_TARGET}" bzImage modules || exit ${?} ;;
     esac
 done
