@@ -15,9 +15,11 @@ cd build
 
 # Clone LLVM and apply fixup patches *before* building
 git clone --depth 1 "https://github.com/llvm/llvm-project"
-pushd llvm-project
-git apply -3 ../patches/*
-popd
+if [ -n "$(echo patches/*.patch)" ]; then
+    pushd llvm-project
+    git apply -3 ../patches/*.patch
+    popd
+fi
 
 ./build-toolchain.sh
 ./upload-build.sh
