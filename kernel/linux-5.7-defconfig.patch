@@ -1,0 +1,12 @@
+diff --git a/Makefile b/Makefile
+index 4a714bfab275..a76cfb19c6cc 100644
+--- a/Makefile
++++ b/Makefile
+@@ -577,6 +577,7 @@ ifneq ($(LLVM_IAS),1)
+ CLANG_FLAGS	+= -no-integrated-as
+ endif
+ CLANG_FLAGS	+= -Werror=unknown-warning-option
++CLANG_FLAGS	+= -fno-builtin-stpcpy
+ KBUILD_CFLAGS	+= $(CLANG_FLAGS)
+ KBUILD_AFLAGS	+= $(CLANG_FLAGS)
+ export CLANG_FLAGS
