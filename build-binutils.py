@@ -190,13 +190,35 @@ def invoke_configure(build_folder, install_folder, root_folder, target,
             '--enable-targets=mips64el-linux-gnuabi64,mips64el-linux-gnuabin32',
             '--enable-shared'
         ],
-        "powerpc-linux-gnu":
-        ['--enable-targets=powerpc64-linux-gnu', '--enable-shared'],
-        "riscv64-linux-gnu": ['--enable-shared'],
-        "s390x-linux-gnu":
-        ['--enable-targets=s390-linux-gnu', '--enable-shared'],
-        "x86_64-linux-gnu":
-        ['--enable-targets=x86_64-linux-gnux32,x86_64-pep', '--enable-shared']
+        "powerpc-linux-gnu": [
+            '--enable-lto', '--enable-relro', '--enable-shared',
+            '--enable-threads', '--disable-gdb', '--disable-sim',
+            '--disable-werror', '--with-pic', '--with-system-zlib'
+        ],
+        "riscv64-linux-gnu": [
+            '--enable-lto', '--enable-relro', '--enable-shared',
+            '--enable-threads', '--disable-sim', '--disable-werror',
+            '--with-pic', '--with-system-zlib'
+        ],
+        "s390x-linux-gnu": [
+            '--enable-lto', '--enable-relro', '--enable-shared',
+            '--enable-targets=s390-linux-gnu', '--enable-threads',
+            '--disable-gdb', '--disable-werror', '--with-pic',
+            '--with-system-zlib'
+        ],
+        "x86_64-linux-gnu": [
+            '--enable-lto',
+            '--enable-relro',
+            '--enable-shared',
+            '--enable-targets=x86_64-pep',
+            '--enable-threads',
+            '--disable-gdb',
+            '--disable-werror',
+            '--with-pic',
+            '--with-system-zlib',
+            # https://github.com/ClangBuiltLinux/linux/issues/1141
+            '--enable-x86-used-note=no'
+        ]
     }
     configure_arch_flags['aarch64-linux-gnu'] = configure_arch_flags[
         'arm-linux-gnueabi'] + ['--enable-targets=aarch64_be-linux-gnu']
