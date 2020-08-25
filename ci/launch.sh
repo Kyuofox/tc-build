@@ -12,4 +12,4 @@ function finish() {
 }
 trap finish EXIT
 
-timeout 2.5h terraform apply -auto-approve "${tf_vars[@]}"
+timeout 4h terraform apply -auto-approve "${tf_vars[@]}"
