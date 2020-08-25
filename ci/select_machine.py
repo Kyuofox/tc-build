@@ -21,10 +21,10 @@ preferred_locations = (
 
 preferred_machines = (
     # (type, ondemand_price)
+    ("g2.large.x86", 5),
     ("m2.xlarge.x86", 2),
     ("c2.medium.x86", 1),
     ("n2.xlarge.x86", 2.25),
-    ("g2.large.x86", 5),
 )
 
 if len(sys.argv) > 1:
