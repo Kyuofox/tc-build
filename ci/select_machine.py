@@ -6,8 +6,9 @@ import sys
 import requests
 
 
-# All core datacenters, ranked by latency from the author's location
+# Mostly core datacenters, ranked by latency from the author's location
 preferred_locations = (
+    "sv15",  # non-core
     "sjc1",
     "dfw2",
     "iad1",
