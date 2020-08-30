@@ -46,7 +46,7 @@ def select_machine():
             data = r.json()["spot_market_prices"]
 
         prices = {loc: list(matches.values())[0]["price"] for loc, matches in data.items()}
-        max_price = ondemand_price * 10 # 10x == no spot market capacity available
+        max_price = ondemand_price * 4 # 10x == no spot market capacity available, but it's closer to 4x for g2.large (+ 0.01)
         location, price = check_locations(prices, max_price, preferred_locations)
         if location:
             return {
