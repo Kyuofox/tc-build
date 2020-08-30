@@ -8,12 +8,10 @@ import requests
 
 # All core datacenters, ranked by latency from the author's location
 preferred_locations = (
-    # EWR1 is currently prioritized for debugging
-    "ewr1",
     "sjc1",
     "dfw2",
     "iad1",
-    #"ewr1",
+    "ewr1",
     "nrt1",
     "ams1",
     "sin3",
