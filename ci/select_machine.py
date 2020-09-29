@@ -20,6 +20,7 @@ preferred_locations = (
 
 preferred_machines = (
     # (type, ondemand_price)
+    ("m3.large.x86", 2),
     ("m2.xlarge.x86", 2),
     ("c2.medium.x86", 1),
     ("n2.xlarge.x86", 2.25),
