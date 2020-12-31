@@ -11,7 +11,7 @@ rm -rf installTmp
 
 # Build LLVM
 msg "Building LLVM..."
-./build-llvm.py --build-stage1-only --install-stage1-only --lto "thin" --projects "clang;lld;polly" --targets "ARM;AArch64;X86" --install-folder "installTmp" --clang-vendor "Sukairain|KyuoFoxHuyu" --branch "main" --build-type "RelWithDebInfo" --incremental --additional-build-arguments "CLANG_REPOSITORY_STRING=GitHub.com/KyuoFoxHuyu | AArch64 Toolchains"
+./build-llvm.py --pgo --lto "thin" --projects "clang;lld;polly" --targets "ARM;AArch64;X86" --install-folder "installTmp" --clang-vendor "Sukairain|KyuoFoxHuyu" --branch "main" --build-type "RelWithDebInfo" --incremental --additional-build-arguments "CLANG_REPOSITORY_STRING=GitHub.com/KyuoFoxHuyu | Build With ThinLTO-PGO"
 
 # Build binutils
 msg "Building binutils..."
