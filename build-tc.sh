@@ -24,9 +24,7 @@ else
 	export CXX=$(which ccache)" g++"
 	[ $(which strip) ] && stripBin=strip
 fi
-./build-binutils.py \
-	--targets arm aarch64 x86_64 \
-	--install-folder "installTmp"
+./build-binutils.py --targets arm aarch64 x86_64 --install-folder "installTmp"
 
 # Remove unused products
 msg "Removing unused products..."
