@@ -11,7 +11,7 @@ rm -rf installTmp
 
 # Build LLVM
 msg "Building LLVM..."
-./build-llvm.py --pgo --lto "full" --projects "clang;lld;polly" --targets "ARM;AArch64;X86" --install-folder "installTmp" --clang-vendor "Alicization|ReleaseRecollection" --branch "main" --build-type "RelWithDebInfo" --incremental --additional-build-arguments "CLANG_REPOSITORY_STRING=GitHub.com/KyuoFoxHuyu | Build With LTO-PGO"
+./build-llvm.py --pgo --lto "full" --projects "clang;lld;polly" --targets "ARM;AArch64;X86" --install-folder "installTmp" --clang-vendor "Alicization" --branch "main" --build-type "RelWithDebInfo" --incremental --additional-build-arguments "CLANG_REPOSITORY_STRING=GitHub.com/KyuoFoxHuyu | Build With LTO-PGO"
 
 # Build binutils
 msg "Building binutils..."
