@@ -96,6 +96,8 @@ else
     [[ -d ${LINUX} ]] || { tar -xzf "${LINUX_TARBALL}" || exit ${?}; }
     cd ${LINUX} || exit 1
     [[ -f ${LINUX_PATCH} ]] && { patch -p1 <"${LINUX_PATCH}" || exit ${?}; }
+    grep -q "A missing symbol table is actually possible if it's an empty" tools/objtool/elf.c ||
+        b4 am -o - https://lore.kernel.org/lkml/a96c3f76173c7021a2298bd73362313736e674b6.1610663051.git.jpoimboe@redhat.com/ | patch -p1
 fi
 
 # Check for all binutils and build them if necessary
