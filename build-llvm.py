@@ -170,6 +170,15 @@ def parse_parameters(root_folder):
 
                         """),
                         action="store_true")
+    parser.add_argument("-j",
+                        "--jobs",
+                        help=textwrap.dedent("""\
+                        By default, ninja will choose a healthy amount of parallelism. If it chooses something too
+                        high, causing your machine to struggle under load, it might be wise to choose a lower value,
+                        like a 1 or 2 minus the output of nproc.
+
+                        """),
+                        type=int)
     parser.add_argument("-L",
                         "--linux-folder",
                         help=textwrap.dedent("""\
@@ -896,6 +905,11 @@ def build_cmake_defines(args, dirs, env_vars, stage):
     # Add the vendor string if necessary
     if args.clang_vendor:
         defines['CLANG_VENDOR'] = args.clang_vendor
+
+    # Add number of jobs if the user specified them
+    if args.jobs:
+        defines['LLVM_PARALLEL_COMPILE_JOBS'] = str(args.jobs)
+        defines['LLVM_PARALLEL_LINK_JOBS'] = str(args.jobs)
 
     return defines
 
