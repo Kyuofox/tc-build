@@ -154,7 +154,7 @@ def invoke_configure(build_folder, install_folder, root_folder, target,
     :param host_arch: Host architecture to optimize for
     """
     configure = [
-        root_folder.joinpath("binutils", "configure").as_posix(),
+        root_folder.joinpath("binutils", "configure").as_posix(), 'CC=gcc', 'CXX=g++',
         '--prefix=%s' % install_folder.as_posix(),
         '--enable-deterministic-archives', '--enable-plugins', '--quiet',
         '--disable-werror'
