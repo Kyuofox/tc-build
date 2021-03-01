@@ -1009,7 +1009,7 @@ def stage_specific_cmake_defines(args, dirs, stage):
 
         # For LLVMgold.so, which is used for LTO with ld.gold
         defines['LLVM_BINUTILS_INCDIR'] = dirs.root_folder.joinpath(
-            utils.current_binutils(), "include").as_posix()
+            "binutils", "include").as_posix()
         defines['LLVM_ENABLE_PLUGINS'] = 'ON'
 
     return defines
