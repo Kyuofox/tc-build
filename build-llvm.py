@@ -366,6 +366,18 @@ def parse_parameters(root_folder):
 
                         """),
                         action="store_true")
+    parser.add_argument("--update-binutils",
+                        help=textwrap.dedent("""\
+                        Update the binutils repo before building
+
+                        """),
+                        action="store_true")
+    parser.add_argument("--update-llvm",
+                        help=textwrap.dedent("""\
+                        Update the LLVM repo before building
+
+                        """),
+                        action="store_true")
     clone_options.add_argument("--use-good-revision",
                                help=textwrap.dedent("""\
                         By default, the script updates LLVM to the latest tip of tree revision, which may at times be
