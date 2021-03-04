@@ -74,8 +74,8 @@ ${PGO:=false} && export PATH=${BUILD_FOLDER:=${TC_BLD}/build/llvm}/stage2/bin:${
 if [[ -n ${SRC_FOLDER} ]]; then
     cd "${SRC_FOLDER}" || exit 1
 else
-    LINUX=linux-5.11-rc5
-    LINUX_TARBALL=${TC_BLD}/kernel/${LINUX}.tar.gz
+    LINUX=linux-5.11.3
+    LINUX_TARBALL=${TC_BLD}/kernel/${LINUX}.tar.xz
     LINUX_PATCH=${TC_BLD}/kernel/${LINUX}-${CONFIG_TARGET}.patch
 
     # If we don't have the source tarball, download and verify it
