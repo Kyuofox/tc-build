@@ -92,12 +92,6 @@ def parse_parameters(root_folder):
                         host processor.
                         """,
                         type=str)
-    parser.add_argument("-u",
-                        "--update",
-                        help="""
-                        Update the binutils repos before building.
-                        """,
-                        action="store_true")
     return parser.parse_args()
 
 
@@ -154,73 +148,47 @@ def invoke_configure(build_folder, install_folder, root_folder, target,
     :param host_arch: Host architecture to optimize for
     """
     configure = [
-        root_folder.joinpath("binutils", "configure").as_posix(), 'CC=gcc', 'CXX=g++',
-        '--prefix=%s' % install_folder.as_posix(),
-        '--enable-deterministic-archives', '--enable-plugins', '--quiet',
-        '--disable-werror'
+        root_folder.joinpath(utils.current_binutils(), "configure").as_posix(),
+        'CC=gcc', 'CXX=g++', '--disable-compressed-debug-sections',
+        '--disable-gdb', '--disable-werror', '--enable-deterministic-archives',
+        '--enable-new-dtags', '--enable-plugins', '--enable-threads',
+        '--prefix=%s' % install_folder.as_posix(), '--quiet',
+        '--with-system-zlib'
     ]
     if host_arch:
         configure += [
-            'CFLAGS=-O3 -march=%s -mtune=%s' % (host_arch, host_arch),
-            'CXXFLAGS=-O3 -march=%s -mtune=%s' % (host_arch, host_arch)
+            'CFLAGS=-O2 -march=%s -mtune=%s' % (host_arch, host_arch),
+            'CXXFLAGS=-O2 -march=%s -mtune=%s' % (host_arch, host_arch)
         ]
     else:
-        configure += ['CFLAGS=-O3', 'CXXFLAGS=-O3']
+        configure += ['CFLAGS=-O2', 'CXXFLAGS=-O2']
 
     configure_arch_flags = {
         "arm-linux-gnueabi": [
-            '--disable-gdb', '--disable-multilib', '--disable-nls',
-            '--with-gnu-as', '--with-gnu-ld',
-            '--with-sysroot=%s' % install_folder.joinpath(target).as_posix()
+            '--disable-multilib', '--disable-nls', '--with-gnu-as',
+            '--with-gnu-ld'
         ],
-        "mips-linux-gnu": [
-            '--disable-compressed-debug-sections', '--enable-new-dtags',
-            '--enable-shared',
-            '--enable-targets=mips64-linux-gnuabi64,mips64-linux-gnuabin32',
-            '--enable-threads'
-        ],
-        "mipsel-linux-gnu": [
-            '--disable-compressed-debug-sections', '--disable-gdb',
-            '--enable-new-dtags', '--enable-shared',
-            '--enable-targets=mips64el-linux-gnuabi64,mips64el-linux-gnuabin32',
-            '--enable-threads'
-        ],
-        "powerpc-linux-gnu": [
-            '--enable-lto', '--enable-relro', '--enable-shared',
-            '--enable-threads', '--disable-gdb', '--disable-sim',
-            '--disable-werror', '--with-pic', '--with-system-zlib'
-        ],
-        "riscv64-linux-gnu": [
-            '--enable-lto', '--enable-relro', '--enable-shared',
-            '--enable-threads', '--disable-sim', '--disable-werror',
-            '--with-pic', '--with-system-zlib'
-        ],
-        "s390x-linux-gnu": [
-            '--enable-lto', '--enable-relro', '--enable-shared',
-            '--enable-targets=s390-linux-gnu', '--enable-threads',
-            '--disable-gdb', '--disable-werror', '--with-pic',
-            '--with-system-zlib'
-        ],
-        "x86_64-linux-gnu": [
-            '--enable-lto',
-            '--enable-relro',
-            '--enable-shared',
-            '--enable-targets=x86_64-pep',
-            '--enable-threads',
-            '--disable-gdb',
-            '--disable-werror',
-            '--with-pic',
-            '--with-system-zlib',
-            # https://github.com/ClangBuiltLinux/linux/issues/1141
-            '--enable-x86-used-note=no'
-        ]
+        "powerpc-linux-gnu":
+        ['--disable-sim', '--enable-lto', '--enable-relro', '--with-pic'],
     }
     configure_arch_flags['aarch64-linux-gnu'] = configure_arch_flags[
-        'arm-linux-gnueabi'] + ['--enable-ld=default', '--enable-gold']
+        'arm-linux-gnueabi'] + ['--enable-gold', '--enable-ld=default']
     configure_arch_flags['powerpc64-linux-gnu'] = configure_arch_flags[
         'powerpc-linux-gnu']
     configure_arch_flags['powerpc64le-linux-gnu'] = configure_arch_flags[
         'powerpc-linux-gnu']
+    configure_arch_flags['riscv64-linux-gnu'] = configure_arch_flags[
+        'powerpc-linux-gnu']
+    configure_arch_flags['s390x-linux-gnu'] = configure_arch_flags[
+        'powerpc-linux-gnu'] + ['--enable-targets=s390-linux-gnu']
+    configure_arch_flags['x86_64-linux-gnu'] = configure_arch_flags[
+        'powerpc-linux-gnu'] + ['--enable-targets=x86_64-pep']
+
+    for endian in ["", "el"]:
+        configure_arch_flags['mips%s-linux-gnu' % (endian)] = [
+            '--enable-targets=mips64%s-linux-gnuabi64,mips64%s-linux-gnuabin32'
+            % (endian, endian)
+        ]
 
     configure += configure_arch_flags.get(target, [])
 
@@ -288,7 +256,7 @@ def main():
     if args.targets is not None:
         targets = args.targets
 
-    utils.fetch_binutils(root_folder, args.update)
+    utils.download_binutils(root_folder)
 
     build_targets(build_folder, install_folder, root_folder,
                   create_targets(targets), args.march)
