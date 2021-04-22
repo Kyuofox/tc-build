@@ -19,6 +19,7 @@ from urllib.error import URLError
 # To bump this, run 'PATH_OVERRIDE=<path_to_updated_toolchain>/bin kernel/build.sh --allyesconfig'
 GOOD_REVISION = 'ecdae5df7da03c56d72796c0b1629edd0995548e'
 
+
 class Directories:
     def __init__(self, build_folder, install_folder, linux_folder, llvm_folder,
                  root_folder):
@@ -30,12 +31,10 @@ class Directories:
 
 
 class EnvVars:
-    def __init__(self, ar, cc, cxx, ld, ranlib):
-        self.ar = ar
+    def __init__(self, cc, cxx, ld):
         self.cc = cc
         self.cxx = cxx
         self.ld = ld
-        self.ranlib = ranlib
 
 
 def clang_version(cc, root_folder):
@@ -352,6 +351,7 @@ def parse_parameters(root_folder):
                         "--update",
                         help=textwrap.dedent("""\
                         Update the LLVM and binutils repos before building
+
                         """),
                         action="store_true")
     parser.add_argument("--update-binutils",
@@ -520,10 +520,7 @@ def check_cc_ld_variables(root_folder):
             ld_to_print = shutil.which(ld)
         print("LD: " + ld_to_print)
 
-    ar = shutil.which("llvm-ar")
-    ranlib = shutil.which("llvm-ranlib")
-
-    return ar, cc, cxx, ld, ranlib
+    return cc, cxx, ld
 
 
 def check_dependencies():
@@ -747,7 +744,6 @@ def slim_cmake_defines():
         'LLVM_INCLUDE_DOCS': 'OFF',
         # Don't include example build targets to save on cmake cycles
         'LLVM_INCLUDE_EXAMPLES': 'OFF',
-
         # Use the experimental new pass manager
         'LLVM_USE_NEWPM': 'ON',
     }
@@ -818,6 +814,8 @@ def cc_ld_cmake_defines(dirs, env_vars, stage):
         llvm_tblgen = get_stage_binary("llvm-tblgen", dirs, stage)
         ranlib = get_stage_binary("llvm-ranlib", dirs, stage)
 
+    # Use llvm-ar for stage 2+ builds to avoid errors with bfd plugin
+    # bfd plugin: LLVM gold plugin has failed to create LTO module: Unknown attribute kind (60) (Producer: 'LLVM9.0.0svn' Reader: 'LLVM 8.0.0')
     if ar:
         defines['CMAKE_AR'] = ar
 
@@ -837,6 +835,7 @@ def cc_ld_cmake_defines(dirs, env_vars, stage):
     if llvm_tblgen:
         defines['LLVM_TABLEGEN'] = llvm_tblgen
 
+    # Use llvm-ranlib for stage 2+ builds
     if ranlib:
         defines['CMAKE_RANLIB'] = ranlib
 
@@ -986,8 +985,8 @@ def stage_specific_cmake_defines(args, dirs, stage):
             defines['LLVM_BUILD_INSTRUMENTED'] = 'IR'
             defines['LLVM_BUILD_RUNTIME'] = 'OFF'
 
+        # If we are at the final stage, use PGO/Thin LTO if requested
         if stage == get_final_stage(args):
-            # If we are at the final stage, use PGO/Thin LTO if requested
             if args.pgo:
                 defines['LLVM_PROFDATA_FILE'] = dirs.build_folder.joinpath(
                     "profdata.prof").as_posix()
