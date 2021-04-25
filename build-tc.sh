@@ -11,7 +11,7 @@ rm -rf installTmp
 
 # Build LLVM
 msg "Building LLVM..."
-./build-llvm.py --pgo "llvm" --lto "thin" --projects "clang;lld;polly;compiler-rt" --targets "ARM;AArch64;X86" --install-folder "installTmp" --clang-vendor "Kyuofox" --branch "main" --build-type "RelWithDebInfo" --additional-build-arguments "CLANG_REPOSITORY_STRING=GitHub.com/KyuoFoxHuyu" --update --update-llvm --update-binutils -D LLVM_PARALLEL_COMPILE_JOBS=$(nproc --all) LLVM_PARALLEL_LINK_JOBS=$(nproc --all) --full-toolchain
+./build-llvm.py --pgo "llvm" --lto "thin" --projects "clang;lld;polly;compiler-rt" --targets "ARM;AArch64;X86" --install-folder "installTmp" --clang-vendor "Kyuofox" --branch "main" --build-type "Release" --additional-build-arguments "CLANG_REPOSITORY_STRING=GitHub.com/KyuoFoxHuyu" --update --update-llvm --update-binutils -D LLVM_PARALLEL_COMPILE_JOBS=$(nproc --all) LLVM_PARALLEL_LINK_JOBS=$(nproc --all) --full-toolchain
 
 # Build binutils
 msg "Building binutils..."
