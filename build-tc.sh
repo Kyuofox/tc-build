@@ -12,14 +12,10 @@ rm -rf installTmp
 # Build LLVM
 msg "Building LLVM..."
 ./build-llvm.py \
-	--update \
-	--build-stage1-only \
-	--install-stage1-only \
-	--projects "clang;lld;polly" \
-	--targets "ARM;AArch64;X86" \
+	--projects clang lld polly \
+	--targets ARM AArch64 X86 \
 	--install-folder "installTmp" \
-	--clang-vendor "Kyuofox-$(date +%Y%m%d)" \
-	--additional-build-arguments "CLANG_REPOSITORY_STRING=GitHub.com/KyuoFoxHuyu"
+	--vendor-string "Kyuofox-$(date +%Y%m%d)"
 
 # Build binutils
 msg "Building binutils..."
