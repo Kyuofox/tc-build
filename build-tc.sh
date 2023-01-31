@@ -12,6 +12,9 @@ rm -rf installTmp
 # Build LLVM
 msg "Building LLVM..."
 ./build-llvm.py \
+	--lto "thin" \
+	--pgo "llvm" \
+	--bolt \
 	--projects clang lld polly \
 	--targets ARM AArch64 X86 \
 	--install-folder "installTmp" \
