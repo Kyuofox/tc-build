@@ -413,6 +413,12 @@ parser.add_argument('--vendor-string',
                     '''),
                     type=str,
                     default='ClangBuiltLinux')
+parser.add_argument('--repository-string',
+                    help=textwrap.dedent('''\
+                    Add this value to the clang repository vendor string.
+
+                    '''),
+                    type=str)
 args = parser.parse_args()
 
 # Start tracking time that the script takes
@@ -533,6 +539,8 @@ if "lld" in args.projects:
 if args.vendor_string:
     common_cmake_defines['CLANG_VENDOR'] = args.vendor_string
     common_cmake_defines['LLD_VENDOR'] = args.vendor_string
+if args.repository_string:
+    common_cmake_defines['CLANG_REPOSITORY_STRING'] = args.repository_string
 if args.defines:
     defines = dict(define.split('=', 1) for define in args.defines)
     common_cmake_defines.update(defines)
