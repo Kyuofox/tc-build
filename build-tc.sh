@@ -15,7 +15,8 @@ msg "Building LLVM..."
 	--projects clang lld polly \
 	--targets ARM AArch64 X86 \
 	--install-folder "installTmp" \
-	--vendor-string "Kyuofox-$(date +%Y%m%d)"
+	--vendor-string "Kyuofox-$(date +%Y%m%d)" \
+	--repository-string "GitHub.com/Kyuofox"
 
 # Build binutils
 msg "Building binutils..."
