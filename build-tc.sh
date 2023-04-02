@@ -19,7 +19,8 @@ msg "Building LLVM..."
 	--targets ARM AArch64 X86 \
 	--install-folder "installTmp" \
 	--vendor-string "Kyuofox-$(date +%Y%m%d)" \
-	--repository-string "GitHub.com/Kyuofox"
+	--repository-string "GitHub.com/Kyuofox" \
+	--defines LLVM_PARALLEL_COMPILE_JOBS=$(nproc --all) LLVM_PARALLEL_LINK_JOBS=$(nproc --all)
 
 # Build binutils
 msg "Building binutils..."
