@@ -76,5 +76,4 @@ rm -rf ./install
 mv installTmp/ install/
 
 msg "build-tc HEAD: $(git rev-parse HEAD)"
-msg "binutils HEAD: $(git -C src/binutils/ rev-parse HEAD)"
 msg "llvm-project HEAD: $(git -C src/llvm-project/ rev-parse HEAD)"
