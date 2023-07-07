@@ -283,6 +283,9 @@ class LLVMKernelBuilder(Builder):
     def build(self):
         builders = []
 
+        lsm = LinuxSourceManager()
+        lsm.location = self.folders.source
+
         allconfig_capable_builders = {
             'AArch64': Arm64KernelBuilder,
             'ARM': ArmKernelBuilder,
@@ -291,6 +294,8 @@ class LLVMKernelBuilder(Builder):
             'SystemZ': S390KernelBuilder,
             'X86': X8664KernelBuilder,
         }
+        if lsm.get_version() >= (6, 5, 0):
+            allconfig_capable_builders['PowerPC'] = PowerPC64KernelBuilder
 
         # This is a little convoluted :/
         # The overall idea here is to avoid duplicating builds, so the
@@ -321,8 +326,6 @@ class LLVMKernelBuilder(Builder):
                     builder.config_targets = [config_target]
                     builders.append(builder)
 
-        lsm = LinuxSourceManager()
-        lsm.location = self.folders.source
         tc_build.utils.print_info(f"Building Linux {lsm.get_kernelversion()} for profiling...")
 
         for builder in builders:
