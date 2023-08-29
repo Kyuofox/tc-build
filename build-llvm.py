@@ -14,7 +14,7 @@ from tc_build.kernel import KernelBuilder, LinuxSourceManager, LLVMKernelBuilder
 from tc_build.tools import HostTools, StageTools
 
 # This is a known good revision of LLVM for building the kernel
-GOOD_REVISION = '5d79a8d148418da0565e6aa665178e6f095dd73e'
+GOOD_REVISION = 'e280e406c2e34ce29e1e71da7cd3a284ea112ce8'
 
 parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
 clone_options = parser.add_mutually_exclusive_group()
