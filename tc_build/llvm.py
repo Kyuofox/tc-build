@@ -377,9 +377,6 @@ class LLVMSlimBuilder(LLVMBuilder):
         build_compiler_rt = self.project_is_enabled('compiler-rt') and llvm_build_runtime
 
         distribution_components = [
-            'clang',
-            'clang-resource-headers',
-            'lld',
             'llvm-ar',
             'llvm-nm',
             'llvm-objcopy',
@@ -390,6 +387,10 @@ class LLVMSlimBuilder(LLVMBuilder):
         ]
         if self.project_is_enabled('bolt'):
             distribution_components.append('bolt')
+        if self.project_is_enabled('clang'):
+            distribution_components += ['clang', 'clang-resource-headers']
+        if self.project_is_enabled('lld'):
+            distribution_components.append('lld')
         if build_compiler_rt:
             distribution_components += ['llvm-profdata', 'profile']
 
