@@ -13,7 +13,7 @@ rm -rf installTmp
 msg "Building LLVM..."
 ./build-llvm.py \
 	--lto "thin" \
-	--pgo "llvm" \
+	--pgo "kernel-defconfig-slim" \
 	--bolt \
 	--projects clang lld polly \
 	--targets ARM AArch64 X86 \
