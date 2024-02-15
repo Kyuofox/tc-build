@@ -258,12 +258,6 @@ class S390KernelBuilder(KernelBuilder):
 
         self.cross_compile = 's390x-linux-gnu-'
 
-        # LD: https://github.com/ClangBuiltLinux/linux/issues/1524
-        # OBJCOPY: https://github.com/ClangBuiltLinux/linux/issues/1530
-        # OBJDUMP: https://github.com/ClangBuiltLinux/linux/issues/859
-        for key in ['LD', 'OBJCOPY', 'OBJDUMP']:
-            self.make_variables[key] = self.cross_compile + key.lower()
-
     def build(self):
         self.toolchain_version = self.get_toolchain_version()
         if self.toolchain_version <= (15, 0, 0):
@@ -271,6 +265,24 @@ class S390KernelBuilder(KernelBuilder):
             tc_build.utils.print_warning(
                 's390 does not build with LLVM < 15.0.0, skipping build...')
             return
+
+        # LD: https://github.com/ClangBuiltLinux/linux/issues/1524
+        # OBJCOPY: https://github.com/ClangBuiltLinux/linux/issues/1530
+        # OBJDUMP: https://github.com/ClangBuiltLinux/linux/issues/859
+        gnu_vars = ['OBJCOPY', 'OBJDUMP']
+        # https://github.com/llvm/llvm-project/pull/75643
+        # https://github.com/llvm/llvm-project/pull/81675
+        lld_res = subprocess.run([Path(self.toolchain_prefix, 'bin/ld.lld'), '-m', 'elf64_s390'],
+                                 capture_output=True,
+                                 check=False,
+                                 text=True)
+        # https://lore.kernel.org/20240207-s390-lld-and-orphan-warn-v1-11-8a665b3346ab@kernel.org/
+        s390_makefile_txt = Path(self.folders.source,
+                                 'arch/s390/Makefile').read_text(encoding='utf-8')
+        if 'error: unknown emulation:' in lld_res.stderr or '-z notext' not in s390_makefile_txt:
+            gnu_vars.append('LD')
+        for key in gnu_vars:
+            self.make_variables[key] = self.cross_compile + key.lower()
 
         super().build()
 
