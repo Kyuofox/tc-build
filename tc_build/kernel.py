@@ -269,7 +269,7 @@ class S390KernelBuilder(KernelBuilder):
         # LD: https://github.com/ClangBuiltLinux/linux/issues/1524
         # OBJCOPY: https://github.com/ClangBuiltLinux/linux/issues/1530
         # OBJDUMP: https://github.com/ClangBuiltLinux/linux/issues/859
-        gnu_vars = ['OBJDUMP']
+        gnu_vars = ['OBJCOPY', 'OBJDUMP']
         # https://github.com/llvm/llvm-project/pull/75643
         # https://github.com/llvm/llvm-project/pull/81675
         lld_res = subprocess.run([Path(self.toolchain_prefix, 'bin/ld.lld'), '-m', 'elf64_s390'],
@@ -281,17 +281,6 @@ class S390KernelBuilder(KernelBuilder):
                                  'arch/s390/Makefile').read_text(encoding='utf-8')
         if 'error: unknown emulation:' in lld_res.stderr or '-z notext' not in s390_makefile_txt:
             gnu_vars.append('LD')
-        # https://github.com/llvm/llvm-project/pull/81841
-        objcopy_res = subprocess.run([
-            Path(self.toolchain_prefix, 'bin/llvm-objcopy'), '-I', 'binary', '-O', 'elf64-s390',
-            '-', '/dev/null'
-        ],
-                                     capture_output=True,
-                                     check=False,
-                                     input='',
-                                     text=True)
-        if 'error: invalid output format:' in objcopy_res.stderr:
-            gnu_vars.append('OBJCOPY')
         for key in gnu_vars:
             self.make_variables[key] = self.cross_compile + key.lower()
 
