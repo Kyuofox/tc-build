@@ -20,7 +20,7 @@ msg "Building LLVM..."
 	--install-folder "installTmp" \
 	--vendor-string "Kyuofox-$(date +%Y%m%d)" \
 	--repository-string "GitHub.com/Kyuofox" \
-	--defines LLVM_PARALLEL_COMPILE_JOBS=$(nproc --all) LLVM_PARALLEL_LINK_JOBS=$(nproc --all)
+	--defines LLVM_PARALLEL_COMPILE_JOBS=$(nproc --all) LLVM_PARALLEL_LINK_JOBS=$(nproc --all) LLVM_UNREACHABLE_OPTIMIZE=ON LLVM_OPTIMIZED_TABLEGEN=ON LLVM_USE_INTEL_JITEVENTS=ON
 
 # Build binutils
 msg "Building binutils..."
