@@ -12,12 +12,14 @@ rm -rf installTmp
 # Build LLVM
 msg "Building LLVM..."
 ./build-llvm.py \
+	--assertions \
 	--lto "thin" \
 	--pgo "kernel-allmodconfig" \
 	--bolt \
 	--projects clang lld polly \
 	--targets ARM AArch64 X86 \
 	--install-folder "installTmp" \
+	--shallow-clone \
 	--vendor-string "Kyuofox-$(date +%Y%m%d)" \
 	--repository-string "GitHub.com/Kyuofox" \
 	--defines LLVM_PARALLEL_COMPILE_JOBS=$(nproc --all) LLVM_PARALLEL_LINK_JOBS=$(nproc --all) LLVM_UNREACHABLE_OPTIMIZE=ON LLVM_OPTIMIZED_TABLEGEN=ON LLVM_USE_INTEL_JITEVENTS=ON
